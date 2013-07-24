@@ -120,7 +120,7 @@ class Keyboard():
     if krs:
       if self.buffer == '':
         pdp8.ac.set(0)
-    else:
+      else:
         pdp8.ac.set(self.getnext())
     if kcc:
       pdp8.ac.set(0)
@@ -401,7 +401,7 @@ def string_ins(ins):
       if op2:
         if op3:
           ret = 'KRB '
-      else:
+        else:
           ret = 'KCC '
       elif op3:
         ret = 'KRS '
@@ -411,7 +411,7 @@ def string_ins(ins):
       if op2:
         if op3:
           ret = 'TLS '
-      else:
+        else:
           ret = 'TCF '
       elif op3:
         ret = 'TPC '
@@ -442,7 +442,7 @@ def string_ins(ins):
       if not rem[11]:
         if rem[8]:
           sel = ['SPA','SNA','SZL']
-      else:
+        else:
           sel = ['SMA','SZA','SNL']
         ret = stringselect(sel, rem[5:])
         if rem[4]:
@@ -454,7 +454,7 @@ def string_ins(ins):
         if rem[5]:
           if rem[7]:
             ret += 'CAM '
-        else:
+          else:
             ret += 'MQA '
         elif rem[7]:
           ret += 'MQL '
@@ -549,7 +549,7 @@ def read_op_elems(args):
     op = lookup(op_arg_dic,args[i])
     if op != -1:
       ret |= op
-  else:
+    else:
       return -1
   op = try_oct(args[args.__len__()-1])
   if op:
@@ -569,14 +569,14 @@ def make_ins(s):
     orv = read_op_elems(cdr(elems))
     if orv != -1:
       op |= orv
-  else:
+    else:
       op = -1
     return op
   for elem in elems:
     orv = lookup(mneumonic_dic,elem)
     if orv != -1:
       val |= orv
-  else:
+    else:
       return -1
   return val
 
@@ -655,7 +655,7 @@ def interact(pdp8):
     if not cmds:
       cmd == ''
       num = 0
-  else:
+    else:
       cmd = car(cmds)
       cmdnum = 0
     if cmds.__len__() == 2:
@@ -689,7 +689,7 @@ def interact(pdp8):
         print 'ECHO',
         if echo:
           print 'ON'
-      else:
+        else:
           print 'OFF'
         cmdnum = 7
       elif cmd == '#help':
@@ -707,3 +707,7 @@ def interact(pdp8):
       elif cmd != '':
         line_interp(cmd, pdp8, echo)
       i += 1
+
+def main():
+  machine = PDP8(4096,"DEFAULT8")
+  interact(machine)

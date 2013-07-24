@@ -18,10 +18,4 @@ especially since there are a lot of nuances.
 
 pdp8.py is Copyright Jonathan Baca 2013.
 
-To run this (at this point in time), load it into
-python, and write the commands:
-
->>> example_machine = PDP8(4096, "EXAMPLE PDP8")
->>> interact(example_machine)
-
 Enjoy! (hopefully)
