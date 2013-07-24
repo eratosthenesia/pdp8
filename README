@@ -1,0 +1,27 @@
+What this is (current version):
+
+This is just a PDP8 emulator. I haven't been able to
+test it extensively, but it seems to be working
+fine. It cannot emulate, at the moment, interrupts
+or extended memory past 4 kilowords, but it'll have
+the capabiility soon.
+
+The goal is to create an easy-to-use and
+time-accurate version of the PDP-8 that runs in
+C, and a graphical interface for it (and to write
+some example programs in PDP8).
+
+I'm writing this so that people learning computer
+science will have an easy-to-understand-but-really-
+hard-to-program-well computer to practice on,
+especially since there are a lot of nuances.
+
+pdp8.py is Copyright Jonathan Baca 2013.
+
+To run this (at this point in time), load it into
+python, and write the commands:
+
+>>> example_machine = PDP8(4096, "EXAMPLE PDP8")
+>>> interact(example_machine)
+
+Enjoy! (hopefully)
