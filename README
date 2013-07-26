@@ -18,4 +18,8 @@ especially since there are a lot of nuances.
 
 pdp8.py is Copyright Jonathan Baca 2013.
 
+More information on the operation of PDP8 machines
+can be found (as of the time of writing this) at
+http://bitsavers.trailing-edge.com/pdf/dec/pdp8/handbooks/IntroToProgramming1969.pdf
+
 Enjoy! (hopefully)

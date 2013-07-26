@@ -1,5 +1,19 @@
+import sys
+
 def car(x):
   return x[0]
+
+def trunclist(idx, list):
+  idx = findfirstinlist(idx,list)
+  return list[:idx]
+
+def findfirstinlist(idx, list):
+  i = 0
+  while i < list.__len__():
+    if list[i] == idx:
+      return i
+    i += 1
+  return i
 
 def cdr(x):
   return x[1:]
@@ -101,11 +115,11 @@ class Terminal(Device):
     tsf = iot.val() & 01
     tpc = iot.val() & 04  
     if tpc:
-      print chr(pdp8.ac.val()%256),
+      sys.stdout.write(chr(pdp8.ac.val()%256))
     if tsf:
       pdp8.step()
 
-class Keyboard():
+class Keyboard(Device):
   def __init__(self):
     self.buffer = ''
     self.flag   = 0
@@ -117,16 +131,17 @@ class Keyboard():
     ksf = iot.val() & 01
     kcc = iot.val() & 02
     krs = iot.val() & 04
+    if kcc:
+      pdp8.ac.set(0)
     if krs:
       if self.buffer == '':
         pdp8.ac.set(0)
       else:
-        pdp8.ac.set(self.getnext())
-    if kcc:
-      pdp8.ac.set(0)
+        ret = self.getnext()
+        pdp8.ac.set(ret)
     if ksf:
       if self.buffer == '':
-        self.buffer = raw_input(pdp8.name+' > ')
+        self.buffer += raw_input(pdp8.name+' (TT) ')
       if self.buffer != '':
         pdp8.step()
 
@@ -159,6 +174,18 @@ class PDP8():
     self.core.reset()
     self.setpc(0)
     self.mn_def = {}
+  def regs(self):
+    print 'PC    - '+myoct(self.pc(),4)
+    print ' PAGE - '+myoct(self.page.val(),4)
+    print ' WADR - '+myoct(self.word.val(),4)
+    print 'AC    - '+myoct(self.ac.val(),4)
+    print 'LINK  - '+myoct(self.l.val(),1)
+  def nullstring(self,s):
+    for ch in s:
+      self.setcurr(ord(ch))
+      self.step()
+    self.setcurr(0)
+    self.step()
   def add_def(self, mn, val):
     self.mn_def[mn] = val
   def swap_ifdef(self, mn):
@@ -235,11 +262,12 @@ class PDP8():
       self.step()
   def _dca(self):
     self.core.set(self.addr.val(),self.ac.val())
+    self.ac.set(0)
   def _jms(self):
     self.core.set(self.addr.val(),self.pc())
-    setpc(self.addr.val()+1)
+    self.setpc(self.addr.val()+1)
   def _jmp(self):
-    setpc(self.addr.val())
+    self.setpc(self.addr.val())
   def _iot(self):
     curr_dev = self.get_dev(self.dev.val())
     curr_dev.run(self,self.iot)
@@ -261,7 +289,7 @@ class PDP8():
     if cml.val():
       self.l.inv()
     if iac.val():
-      self.ac.inc(l)
+      self.ac.inc(self.l)
     if rar.val():
       self.ac.set(rot_r(self.ac.val(self.l), \
       01+bsw.val(),13),self.l)
@@ -291,7 +319,7 @@ class PDP8():
       skip = skip or zero_flag
     if(snl.val()):
       skip = skip or link_flag
-    if(andor.val()):
+    if(not andor.val()):
       skip = not skip
     if skip:
       self.step()
@@ -485,14 +513,20 @@ def forcelist(x):
 
 def remove_allfirst(ch,s):
   i = 0
-  while s[i] == ch:
-    i += 1
+  not_done = True
+  while i < s.__len__() and not_done:
+    if s[i] != ch:
+      not_done = False
+    else:
+      i += 1
   return s[i:]
 
 def remove_dup(ch,s):
   if s == '':
     return s
   s = remove_allfirst(ch,s)
+  if s == '':
+    return s
   idx = idx_first_ch(ch,s)+1
   return s[:idx]+remove_dup(ch,s[idx:])
 
@@ -503,6 +537,9 @@ def delimit(ch,raw):
   return cons(_car,delimit(ch,_cdr))
 
 def delimit_ws(raw):
+  raw = remove_dup('\t',raw)
+  raw = remove_dup(' ',raw)
+  raw = str_concat(delimit('\t',raw))
   return delimit(' ',raw)
 
 def try_oct(s):
@@ -523,7 +560,7 @@ def lookup(dic,key):
 
 op_dic = \
 {'and':00000,'tad':01000,'isz':02000,'dca':03000,\
- 'jms':04000}
+ 'jms':04000,'jmp':05000}
 
 op_arg_dic = \
 {'i':00400,'z':00200}
@@ -537,7 +574,12 @@ mneumonic_dic = \
  'szl':07430,'mqa':07501,'sca':07441,
  'mql':07421,'cam':07621,'nop':07401,'scl':07403,
  'muy':07405,'dvi':07407,'nmi':07411,'shl':07413,
- 'asr':07415,'lsr':07417}
+ 'asr':07415,'lsr':07417,
+ 'tfl':06040,'tcf':06042,'tsk':06045,
+ 'tpc':06044,'tsf':06041,'tls':06046,
+ 'ksf':06031,'kcc':06032,'krs':06034,
+ 'kie':06035,'krb':06036,'kcf':06030
+}
 
 def read_op_elems(args):
   global op_arg_dic
@@ -603,6 +645,13 @@ def check_mneumonic(line):
   return -1
 
 def line_interp(line,pdp8,*interactive):
+  line = delimit_ws(line)
+  line = trunclist('/',line)
+  i = 0
+  for i in range(0,line.__len__()):
+    line[i] = pdp8.swap_ifdef(line[i])
+  line = str_concat(line)
+  op = make_ins(line)
   pc = check_addr(line)
   if pc != -1:
     pdp8.setpc(pc)
@@ -610,13 +659,6 @@ def line_interp(line,pdp8,*interactive):
       if car(interactive):
         print "PC AT "+myoct(pc,4)
     return
-  line = delimit_ws(line)
-  i = 0
-  for i in range(0,line.__len__()):
-    line[i] = pdp8.swap_ifdef(line[i])
-  line = str_concat(line)
-  print line
-  op = make_ins(line)
   if op != -1:
     pdp8.setcurr(op)
     if interactive:
@@ -627,7 +669,8 @@ def line_interp(line,pdp8,*interactive):
   op = check_mneumonic(line)
   if op != -1:
     if interactive:
-      print op.upper() + ' IS ' + myoct(pdp8.pc(),4)
+      if car(interactive):
+        print op.upper() + ' IS ' + myoct(pdp8.pc(),4)
     pdp8.add_def(op,pdp8.pc())
 
 def make_mem(code,pdp8):
@@ -635,10 +678,16 @@ def make_mem(code,pdp8):
   for line in lines:
     line_interp(line,pdp8)
 
+def repch(x):
+  if x < 256:
+    return '['+repr(chr(x))+']'
+  else:
+    return ''
+
 def printline(loc,x):
   print myoct(loc,4)+': ' +\
-        myoct(  x,4)+' ~ '+\
-        string_ins(x)
+        myoct(  x,4)+' '+repch(x)+\
+        ' ~ '+string_ins(x)
 
 def interact(pdp8):
   unquit = True
@@ -647,11 +696,17 @@ def interact(pdp8):
   print 'Interactive mode with machine ('+pdp8.name+')'
   print 'Memory size is '+repr(pdp8.core.numwords)+' '\
          +repr(pdp8.core.wordsize)+'-bit words'
-  print '(type \'#help#\' for a list of commands)'
+  print '(type \'#help\' for a list of commands)'
   while unquit:
     num = 1
-    cmd = raw_input(pdp8.name + ' > ')
+    cmd = ''
+    while not cmd:
+      if echo:
+        cmd = raw_input(pdp8.name + ' > ')
+      else:
+        cmd = raw_input(' > ')
     cmds = delimit_ws(cmd.lower())
+    orig = cmd
     if not cmds:
       cmd == ''
       num = 0
@@ -659,12 +714,16 @@ def interact(pdp8):
       cmd = car(cmds)
       cmdnum = 0
     if cmds.__len__() == 2:
-      num = try_oct(cmds[1])
-      if num:
-        num -= 1
+      num = max(1,try_oct(cmds[1]))
     i = 0
     while i < num:
-      if cmd == '#run' or cmdnum == 1:
+      if cmd[0] == '"':
+        try:
+          orig = str(eval(orig))
+          pdp8.nullstring(orig)
+        except:
+          pass
+      elif cmd == '#run' or cmdnum == 1:
         pdp8.run()
         cmdnum = 1
         i = num
@@ -691,9 +750,12 @@ def interact(pdp8):
           print 'ON'
         else:
           print 'OFF'
-        cmdnum = 7
+        cmdnum = 6
+      elif cmd == '#regs':
+        pdp8.regs()
       elif cmd == '#help':
         print 'Command     Action'
+        print '#regs        Print out register information'
         print '#run         Starts the program at the current PC'
         print '#step n      Steps the program n times'
         print '#done        Exits the interactive mode'
@@ -703,11 +765,15 @@ def interact(pdp8):
         print 'nnnn:        Sets PC to nnnn (octal)'
         print 'alias,       Sets vaue of \'alias\' to PC'
         print '(opcode)     Inputs the value of (opcode) to memory'
+        print '"string"     Put a null-terminated string into memory'
         i = num
       elif cmd != '':
-        line_interp(cmd, pdp8, echo)
+        line_interp(str_concat(cmds), pdp8, echo)
+        i = num
       i += 1
 
 def main():
   machine = PDP8(4096,"DEFAULT8")
   interact(machine)
+
+main()
